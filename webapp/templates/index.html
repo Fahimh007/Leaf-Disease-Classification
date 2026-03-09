@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Leaf Disease Predictor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  </head>
+  <body>
+    <div class="app-bg">
+      <div class="container py-5">
+        <div class="row justify-content-center">
+          <div class="col-12 col-md-10 col-lg-8">
+            <div class="glass p-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h1 class="h4 mb-0">Leaf Disease Predictor</h1>
+                <small class="text-muted">Responsive • Futuristic • Fast</small>
+              </div>
+
+              <form id="predict-form" method="post" enctype="multipart/form-data">
+                <input type="hidden" id="fetched-input" name="fetched" value="">
+                <div class="row g-3">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small">Choose Image</label>
+                    <div class="d-flex gap-2 mb-2">
+                      <label class="btn btn-outline-secondary mb-0" for="image-input" role="button">Choose File</label>
+                      <button id="open-camera-btn" type="button" class="btn btn-outline-secondary mb-0" data-bs-toggle="modal" data-bs-target="#cameraModal">Use Camera</button>
+                      <button id="url-btn" type="button" class="btn btn-outline-secondary mb-0" data-bs-toggle="modal" data-bs-target="#urlModal">From URL</button>
+                    </div>
+                    <input id="image-input" class="form-control form-control-lg visually-hidden" type="file" name="image" accept="image/*">
+                    <div class="form-text">Square or rectangular images work best (224×224 recommended). You can also take a photo with your camera.</div>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small">Preview</label>
+                    <div id="drop-area" class="preview-box" data-bs-toggle="tooltip" title="Drag & drop an image here">
+                      <img id="preview-img" data-default="{{ url_for('static', filename='img/placeholder.png') }}" src="{{ image_url or url_for('static', filename='img/placeholder.png') }}" alt="preview">
+                    </div>
+                    <div class="mt-2 d-flex gap-2">
+                      <button id="submit-btn" class="btn btn-primary btn-lg flex-grow-1" type="submit">Upload & Predict</button>
+                      <button id="reset-btn" type="button" class="btn btn-outline-secondary">Reset</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+              <div id="result-area" class="mt-4">
+                {% if result %}
+                <div class="card result-card mb-3">
+                  <div class="card-body">
+                    <h5 class="card-title mb-1">Top Prediction</h5>
+                    <p class="fs-4 mb-0">{{ result }}</p>
+                  </div>
+                </div>
+
+                <div class="mb-2 small text-muted">Class probabilities (sorted)</div>
+                <div class="prob-list">
+                  {% for label, prob in probabilities %}
+                  <div class="prob-item mb-2">
+                    <div class="d-flex justify-content-between">
+                      <div>{{ label }}</div>
+                      <div>{{ '%.2f'|format(prob) }}%</div>
+                    </div>
+                      <div class="progress mt-1" style="height:8px;">
+                        <div class="progress-bar" role="progressbar" style="width: 0%;" data-prob="{{ '%.2f'|format(prob) }}" aria-valuenow="{{ prob }}" aria-valuemin="0" aria-valuemax="100"></div>
+                      </div>
+                  </div>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="loader-overlay" class="loader-overlay d-none">
+        <div class="loader-box">
+          <div class="spinner-border text-light" role="status"></div>
+          <div class="mt-2">Analyzing image — please wait...</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+    <!-- Camera Modal -->
+    <div class="modal fade" id="cameraModal" tabindex="-1" aria-labelledby="cameraModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light">
+          <div class="modal-header border-0">
+            <h5 class="modal-title" id="cameraModalLabel">Capture Photo</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <video id="camera-video" autoplay playsinline style="max-width:100%; border-radius:8px; background:#000"></video>
+            <canvas id="capture-canvas" class="d-none"></canvas>
+          </div>
+          <div class="modal-footer border-0">
+            <button id="capture-btn" type="button" class="btn btn-primary">Capture</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+      <!-- URL Modal -->
+      <div class="modal fade" id="urlModal" tabindex="-1" aria-labelledby="urlModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="urlModalLabel">Import From URL</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!-- Paste Modal -->
+            <div class="modal fade" id="pasteModal" tabindex="-1" aria-labelledby="pasteModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="pasteModalLabel">Paste Image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <p>Focus this dialog and press <strong>Ctrl+V</strong> (or right-click &gt; Paste) to paste an image from the clipboard. Supported: screenshots, copied images from other apps.</p>
+                    <div class="preview-box" id="paste-preview" style="height:200px;">
+                      <img id="paste-img" src="{{ url_for('static', filename='img/placeholder.png') }}" alt="paste preview">
+                    </div>
+                    <div id="paste-alert" class="mt-2 text-danger small d-none"></div>
+                  </div>
+                  <div class="modal-footer">
+                    <button id="paste-use-btn" type="button" class="btn btn-primary">Use Pasted Image</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-body">
+              <div id="url-alert" class="alert alert-danger d-none" role="alert"></div>
+              <label for="url-input" class="form-label">Image URL</label>
+              <input id="url-input" type="url" class="form-control" placeholder="https://example.com/leaf.jpg">
+              <div class="form-text mt-2">Paste a direct image URL (must end with .jpg/.png). If cross-origin blocked, try downloading the image and upload instead.</div>
+            </div>
+            <div class="modal-footer">
+              <button id="url-load-btn" type="button" class="btn btn-primary">Load Image</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+  </body>
+</html>

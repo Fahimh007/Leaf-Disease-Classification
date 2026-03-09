@@ -1,0 +1,27 @@
+__pycache__/
+.ipynb_checkpoints/
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Dataset and large files
+Dataset/
+
+# Model files
+*.h5
+*.hdf5
+best_leaf_model.h5
+
+# Python build / packaging
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

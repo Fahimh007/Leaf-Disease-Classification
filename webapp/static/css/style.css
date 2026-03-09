@@ -1,0 +1,57 @@
+:root{
+  --accent1: #2e7d32; /* deep leaf green */
+  --accent2: #9ccc65; /* light leaf green */
+  --glass-bg: rgba(255,255,255,0.06);
+}
+html,body{height:100%;}
+.app-bg{
+  min-height:100vh;
+  background: radial-gradient(1000px 350px at 10% 10%, rgba(46,125,50,0.10), transparent),
+              radial-gradient(800px 250px at 90% 90%, rgba(156,204,101,0.06), transparent),
+              linear-gradient(180deg,#071914 0%, #04120d 100%);
+  color:#ffffff;
+}
+/* Force all text inside the app to solid white */
+.app-bg, .app-bg * { color: #ffffff !important; }
+.glass{
+  background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00));
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(2,10,6,0.55);
+}
+.preview-box{
+  width:100%;
+  height:220px;
+  border-radius:12px;
+  overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(0,0,0,0.02));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px dashed rgba(255,255,255,0.03);
+}
+.preview-box img{max-width:100%; max-height:100%; display:block; object-fit:contain; opacity:0; transform:scale(0.98); transition: opacity 280ms ease, transform 360ms cubic-bezier(.2,.9,.2,1);}
+.preview-box img.loaded{opacity:1; transform:scale(1);}
+.result-card{background:linear-gradient(90deg, rgba(46,125,50,0.14), rgba(156,204,101,0.06)); border: none; color: #fff}
+.prob-item{backdrop-filter: blur(6px);}
+.loader-overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg, rgba(4,10,6,0.6), rgba(2,6,4,0.85)); z-index:1050}
+.loader-box{padding:28px; border-radius:14px; text-align:center; color:#fff; background:linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00)); border:1px solid rgba(255,255,255,0.04)}
+
+/* result card entrance */
+.result-card{animation: cardIn 420ms ease both}
+.prob-item{animation: itemFade 420ms ease both}
+
+@keyframes cardIn{ from { transform: translateY(10px); opacity:0 } to { transform: translateY(0); opacity:1 } }
+@keyframes itemFade{ from { transform: translateY(6px); opacity:0 } to { transform: translateY(0); opacity:1 } }
+
+/* progress bar smooth width transition */
+.progress-bar{transition: width 600ms cubic-bezier(.2,.9,.2,1);} 
+
+/* progress bar accent */
+.progress-bar{
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+}
+
+@media (max-width:576px){
+  .preview-box{height:180px}
+}
