@@ -3,19 +3,107 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Leaf Disease Predictor</title>
+    <title>Leaf Disease Predictor - XAI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+      .xai-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+      }
+      .xai-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 12px;
+        padding: 1.5rem;
+        backdrop-filter: blur(10px);
+      }
+      .heatmap-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+      .heatmap-image {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.1);
+      }
+      .severity-badge {
+        font-size: 1.1rem;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        display: inline-block;
+        margin: 0.5rem 0;
+      }
+      .severity-mild {
+        background: linear-gradient(135deg, #84fab0, #8fd3f4);
+        color: #333;
+      }
+      .severity-moderate {
+        background: linear-gradient(135deg, #fa709a, #fee140);
+        color: #333;
+      }
+      .severity-severe {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+        color: white;
+      }
+      .symptom-list, .treatment-list {
+        list-style: none;
+        padding: 0;
+      }
+      .symptom-list li, .treatment-list li {
+        padding: 0.5rem 0;
+        padding-left: 1.5rem;
+        position: relative;
+      }
+      .symptom-list li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #fa709a;
+        font-weight: bold;
+      }
+      .treatment-list li:before {
+        content: "→";
+        position: absolute;
+        left: 0;
+        color: #84fab0;
+        font-weight: bold;
+      }
+      .confidence-bar {
+        height: 8px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+      }
+      .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #84fab0, #8fd3f4);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+      }
+      .label-prob {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.95rem;
+        margin-top: 0.5rem;
+      }
+    </style>
   </head>
   <body>
     <div class="app-bg">
       <div class="container py-5">
         <div class="row justify-content-center">
-          <div class="col-12 col-md-10 col-lg-8">
+          <div class="col-12 col-md-10 col-lg-9">
             <div class="glass p-4">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h1 class="h4 mb-0">Leaf Disease Predictor</h1>
-                <small class="text-muted">Responsive • Futuristic • Fast</small>
+                <small class="text-muted">XAI • Explainable • Interpretable</small>
               </div>
 
               <form id="predict-form" method="post" enctype="multipart/form-data">
@@ -29,7 +117,7 @@
                       <button id="url-btn" type="button" class="btn btn-outline-secondary mb-0" data-bs-toggle="modal" data-bs-target="#urlModal">From URL</button>
                     </div>
                     <input id="image-input" class="form-control form-control-lg visually-hidden" type="file" name="image" accept="image/*">
-                    <div class="form-text">Square or rectangular images work best (224×224 recommended). You can also take a photo with your camera.</div>
+                    <div class="form-text">Upload a rubber leaf image to get instant AI-powered analysis with explainability.</div>
                   </div>
 
                   <div class="col-12 col-md-6">
@@ -38,36 +126,122 @@
                       <img id="preview-img" data-default="{{ url_for('static', filename='img/placeholder.png') }}" src="{{ image_url or url_for('static', filename='img/placeholder.png') }}" alt="preview">
                     </div>
                     <div class="mt-2 d-flex gap-2">
-                      <button id="submit-btn" class="btn btn-primary btn-lg flex-grow-1" type="submit">Upload & Predict</button>
+                      <button id="submit-btn" class="btn btn-primary btn-lg flex-grow-1" type="submit">Upload & Analyze</button>
                       <button id="reset-btn" type="button" class="btn btn-outline-secondary">Reset</button>
                     </div>
                   </div>
                 </div>
               </form>
 
+              <!-- Results Section -->
               <div id="result-area" class="mt-4">
-                {% if result %}
-                <div class="card result-card mb-3">
-                  <div class="card-body">
-                    <h5 class="card-title mb-1">Top Prediction</h5>
-                    <p class="fs-4 mb-0">{{ result }}</p>
-                  </div>
-                </div>
-
-                <div class="mb-2 small text-muted">Class probabilities (sorted)</div>
-                <div class="prob-list">
-                  {% for label, prob in probabilities %}
-                  <div class="prob-item mb-2">
-                    <div class="d-flex justify-content-between">
-                      <div>{{ label }}</div>
-                      <div>{{ '%.2f'|format(prob) }}%</div>
+                {% if explanation %}
+                  <!-- Main Prediction Card -->
+                  <div class="card result-card mb-3">
+                    <div class="card-body">
+                      <h5 class="card-title mb-2">Prediction</h5>
+                      <p class="fs-3 mb-0">{{ explanation.disease }}</p>
+                      <div class="mt-2">
+                        <small class="text-muted">Confidence: <strong>{{ '%.1f'|format(explanation.confidence) }}%</strong></small>
+                      </div>
                     </div>
+                  </div>
+
+                  <!-- XAI Explainability Section -->
+                  <div class="xai-container">
+                    
+                    <!-- Severity Card -->
+                    <div class="xai-card">
+                      <h6 class="small text-muted mb-3">Disease Severity</h6>
+                      {% if explanation.severity == 'Mild' %}
+                        <div class="severity-badge severity-mild">{{ explanation.severity }}</div>
+                      {% elif explanation.severity == 'Moderate' %}
+                        <div class="severity-badge severity-moderate">{{ explanation.severity }}</div>
+                      {% else %}
+                        <div class="severity-badge severity-severe">{{ explanation.severity }}</div>
+                      {% endif %}
+                      <p class="small mt-2 mb-0">Affected Area: <strong>{{ explanation.severity_percentage }}</strong></p>
+                    </div>
+
+                    <!-- Grad-CAM Visualization Card -->
+                    <div class="xai-card">
+                      <h6 class="small text-muted mb-3">Visual Explanation (Grad-CAM)</h6>
+                      <div class="heatmap-grid">
+                        {% if explanation.heatmap_base64 %}
+                          <div>
+                            <small class="text-muted d-block mb-2">Heatmap</small>
+                            <img src="{{ explanation.heatmap_base64 }}" alt="heatmap" class="heatmap-image">
+                          </div>
+                        {% endif %}
+                        {% if explanation.overlay_base64 %}
+                          <div>
+                            <small class="text-muted d-block mb-2">Overlay</small>
+                            <img src="{{ explanation.overlay_base64 }}" alt="overlay" class="heatmap-image">
+                          </div>
+                        {% endif %}
+                      </div>
+                      <small class="text-muted mt-2 d-block">Red = high influence on prediction</small>
+                    </div>
+
+                    <!-- Confidence Scores Card -->
+                    <div class="xai-card">
+                      <h6 class="small text-muted mb-3">Confidence Scores</h6>
+                      {% for label, prob in explanation.all_predictions %}
+                        <div class="label-prob">
+                          <span>{{ label }}</span>
+                          <strong>{{ '%.1f'|format(prob) }}%</strong>
+                        </div>
+                        <div class="confidence-bar">
+                          <div class="confidence-fill" style="width: {{ prob }}%"></div>
+                        </div>
+                      {% endfor %}
+                    </div>
+
+                    <!-- Symptoms Card -->
+                    <div class="xai-card">
+                      <h6 class="small text-muted mb-3">Observed Symptoms</h6>
+                      <ul class="symptom-list">
+                        {% for symptom in explanation.symptoms %}
+                          <li>{{ symptom }}</li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+
+                    <!-- Treatment Card -->
+                    <div class="xai-card">
+                      <h6 class="small text-muted mb-3">Recommended Actions</h6>
+                      <ul class="treatment-list">
+                        {% for treatment in explanation.treatment %}
+                          <li>{{ treatment }}</li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+
+                  </div>
+
+                {% elif result %}
+                  <!-- Fallback display if explanation data is missing -->
+                  <div class="card result-card mb-3">
+                    <div class="card-body">
+                      <h5 class="card-title mb-1">Top Prediction</h5>
+                      <p class="fs-4 mb-0">{{ result }}</p>
+                    </div>
+                  </div>
+
+                  <div class="mb-2 small text-muted">Class probabilities (sorted)</div>
+                  <div class="prob-list">
+                    {% for label, prob in probabilities %}
+                    <div class="prob-item mb-2">
+                      <div class="d-flex justify-content-between">
+                        <div>{{ label }}</div>
+                        <div>{{ '%.2f'|format(prob) }}%</div>
+                      </div>
                       <div class="progress mt-1" style="height:8px;">
                         <div class="progress-bar" role="progressbar" style="width: 0%;" data-prob="{{ '%.2f'|format(prob) }}" aria-valuenow="{{ prob }}" aria-valuemin="0" aria-valuemax="100"></div>
                       </div>
+                    </div>
+                    {% endfor %}
                   </div>
-                  {% endfor %}
-                </div>
                 {% endif %}
               </div>
             </div>
@@ -78,7 +252,7 @@
       <div id="loader-overlay" class="loader-overlay d-none">
         <div class="loader-box">
           <div class="spinner-border text-light" role="status"></div>
-          <div class="mt-2">Analyzing image — please wait...</div>
+          <div class="mt-2">Analyzing image with XAI — please wait...</div>
         </div>
       </div>
     </div>
@@ -105,48 +279,50 @@
         </div>
       </div>
     </div>
-      <!-- URL Modal -->
-      <div class="modal fade" id="urlModal" tabindex="-1" aria-labelledby="urlModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="urlModalLabel">Import From URL</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <!-- Paste Modal -->
-            <div class="modal fade" id="pasteModal" tabindex="-1" aria-labelledby="pasteModalLabel" aria-hidden="true">
-              <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title" id="pasteModalLabel">Paste Image</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                  </div>
-                  <div class="modal-body">
-                    <p>Focus this dialog and press <strong>Ctrl+V</strong> (or right-click &gt; Paste) to paste an image from the clipboard. Supported: screenshots, copied images from other apps.</p>
-                    <div class="preview-box" id="paste-preview" style="height:200px;">
-                      <img id="paste-img" src="{{ url_for('static', filename='img/placeholder.png') }}" alt="paste preview">
-                    </div>
-                    <div id="paste-alert" class="mt-2 text-danger small d-none"></div>
-                  </div>
-                  <div class="modal-footer">
-                    <button id="paste-use-btn" type="button" class="btn btn-primary">Use Pasted Image</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="modal-body">
-              <div id="url-alert" class="alert alert-danger d-none" role="alert"></div>
-              <label for="url-input" class="form-label">Image URL</label>
-              <input id="url-input" type="url" class="form-control" placeholder="https://example.com/leaf.jpg">
-              <div class="form-text mt-2">Paste a direct image URL (must end with .jpg/.png). If cross-origin blocked, try downloading the image and upload instead.</div>
-            </div>
-            <div class="modal-footer">
-              <button id="url-load-btn" type="button" class="btn btn-primary">Load Image</button>
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
+
+    <!-- URL Modal -->
+    <div class="modal fade" id="urlModal" tabindex="-1" aria-labelledby="urlModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="urlModalLabel">Import From URL</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="url-alert" class="alert alert-danger d-none" role="alert"></div>
+            <label for="url-input" class="form-label">Image URL</label>
+            <input id="url-input" type="url" class="form-control" placeholder="https://example.com/leaf.jpg">
+            <div class="form-text mt-2">Paste a direct image URL (must end with .jpg/.png).</div>
+          </div>
+          <div class="modal-footer">
+            <button id="url-load-btn" type="button" class="btn btn-primary">Load Image</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Paste Modal -->
+    <div class="modal fade" id="pasteModal" tabindex="-1" aria-labelledby="pasteModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="pasteModalLabel">Paste Image</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Focus this dialog and press <strong>Ctrl+V</strong> to paste an image from clipboard.</p>
+            <div class="preview-box" id="paste-preview" style="height:200px;">
+              <img id="paste-img" src="{{ url_for('static', filename='img/placeholder.png') }}" alt="paste preview">
+            </div>
+            <div id="paste-alert" class="mt-2 text-danger small d-none"></div>
+          </div>
+          <div class="modal-footer">
+            <button id="paste-use-btn" type="button" class="btn btn-primary">Use Pasted Image</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
