@@ -1,2 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leaf-disease-classification"
+version = "1.0.0"
+description = "Flask web app for rubber leaf disease classification"
+requires-python = ">=3.11"
+dependencies = [
+  "flask",
+  "tensorflow",
+  "pillow",
+  "numpy",
+  "requests",
+  "opencv-python-headless",
+]
+
 [tool.vercel]
 entrypoint = "webapp.app:app"
