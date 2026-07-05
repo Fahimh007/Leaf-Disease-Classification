@@ -1,6 +1,6 @@
 flask
-tensorflow
+tensorflow-cpu==2.16.2
 pillow
-numpy
+numpy<2.0
 requests
 opencv-python-headless
