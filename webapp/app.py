@@ -3,9 +3,6 @@ from flask import Flask, render_template, request, redirect, url_for
 from werkzeug.utils import secure_filename
 import numpy as np
 import cv2
-import tensorflow as tf
-from tensorflow.keras.models import load_model
-from tensorflow.keras.applications.efficientnet import preprocess_input
 from PIL import Image
 import requests
 import hashlib
@@ -23,14 +20,24 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Load model once at startup
+# Load model lazily so serverless startup stays lightweight
 model = None
 model_error = None
 
-try:
-    model = load_model(MODEL_PATH)
-except Exception as e:
-    model_error = str(e)
+
+def get_model():
+    global model, model_error
+    if model is not None or model_error is not None:
+        return model
+
+    try:
+        from tensorflow.keras.models import load_model
+        model = load_model(MODEL_PATH)
+    except Exception as e:
+        model_error = str(e)
+        model = None
+
+    return model
 
 CLASS_MAP = {
     'Abnormal': 0,
@@ -84,6 +91,8 @@ DISEASE_INFO = {
 def make_gradcam_heatmap(img_array, model):
     """Generate Grad-CAM heatmap with intelligent fallback"""
     try:
+        import tensorflow as tf
+
         # Try to find the last convolutional layer
         last_conv_layer = find_conv_layer(model)
         
@@ -239,6 +248,8 @@ def image_to_base64(img_array):
 
 def prepare_image(image_path, target_size=(224, 224)):
     """Prepare image for model prediction"""
+    from tensorflow.keras.applications.efficientnet import preprocess_input
+
     img = Image.open(image_path).convert('RGB')
     img = img.resize(target_size)
     img_array = np.array(img)
@@ -258,6 +269,7 @@ def index():
         error = f"Model not available: {model_error}"
     
     if request.method == 'POST':
+        model = get_model()
         if model_error:
             error = f"Model not available: {model_error}"
             return render_template('index.html', result=result, probabilities=probabilities, image_url=image_url, error=error)
