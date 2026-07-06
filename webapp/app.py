@@ -9,6 +9,24 @@ import hashlib
 import base64
 from io import BytesIO
 
+
+def find_conv_layer(model):
+    """Return the most appropriate convolutional layer for Grad-CAM."""
+    conv_layers = []
+    for layer in model.layers:
+        if hasattr(layer, 'output_shape') and len(getattr(layer, 'output_shape', [])) == 4:
+            conv_layers.append(layer)
+
+    if not conv_layers:
+        return None
+
+    # Prefer the last convolutional layer that is not a pooling layer.
+    for layer in reversed(conv_layers):
+        if getattr(layer, 'name', '').startswith('conv') or 'conv' in layer.name.lower():
+            return layer
+
+    return conv_layers[-1]
+
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DATASET_DIR = os.path.join(BASE_DIR, 'Dataset')
 NOTEBOOK_MODEL = os.path.join(BASE_DIR, 'notebooks', 'best_leaf_model.h5')
@@ -26,15 +44,22 @@ model_error = None
 
 def get_model():
     global model, model_error
-    if model is not None or model_error is not None:
+    if model is not None:
         return model
+    if model_error is not None:
+        return None
 
     try:
-        from tensorflow.keras.models import load_model
-        model = load_model(MODEL_PATH)
+        import tensorflow as tf
+        model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     except Exception as e:
-        model_error = str(e)
-        model = None
+        try:
+            import keras
+            model = keras.models.load_model(MODEL_PATH, compile=False)
+        except Exception as keras_error:
+            model_error = f"{e}; fallback error: {keras_error}"
+            model = None
+            return None
 
     return model
 
@@ -269,10 +294,10 @@ def index():
     
     if request.method == 'POST':
         model = get_model()
-        if model_error:
-            error = f"Model not available: {model_error}"
+        if model is None:
+            error = f"Model not available: {model_error or 'Unknown error'}"
             return render_template('index.html', result=result, probabilities=probabilities, image_url=image_url, error=error)
-            
+
         fetched = request.form.get('fetched')
         if fetched:
             fetched_name = os.path.basename(fetched)
@@ -291,40 +316,44 @@ def index():
             file.save(filepath)
             image_url = url_for('static', filename=f'uploads/{filename}')
 
-        # Prepare image and get prediction
-        img_batch, img_original = prepare_image(filepath)
-        preds = model.predict(img_batch, verbose=0)[0]
-        probs = (preds * 100).tolist()
-
-        probabilities_map = {label: float(probs[idx]) for idx, label in enumerate(class_labels)}
-        paired_sorted = sorted(probabilities_map.items(), key=lambda x: x[1], reverse=True)
-
-        result = paired_sorted[0][0]
-        probabilities = paired_sorted
-
-        # Generate Grad-CAM explanation
         try:
-            heatmap = make_gradcam_heatmap(img_batch, model)
-            overlay_img, heatmap_vis = overlay_heatmap(img_original, heatmap)
-            severity, severity_pct = estimate_severity(heatmap)
-            
-            # Get disease information
-            disease_info = DISEASE_INFO.get(result, {})
-            
-            explanation_data = {
-                'disease': result,
-                'confidence': float(paired_sorted[0][1]),
-                'severity': severity,
-                'severity_percentage': f"{severity_pct:.1f}%",
-                'heatmap_base64': image_to_base64(heatmap_vis),
-                'overlay_base64': image_to_base64(overlay_img),
-                'symptoms': disease_info.get('symptoms', []),
-                'treatment': disease_info.get('treatment', []),
-                'all_predictions': paired_sorted
-            }
+            # Prepare image and get prediction
+            img_batch, img_original = prepare_image(filepath)
+            preds = model.predict(img_batch, verbose=0)[0]
+            probs = (preds * 100).tolist()
+
+            probabilities_map = {label: float(probs[idx]) for idx, label in enumerate(class_labels)}
+            paired_sorted = sorted(probabilities_map.items(), key=lambda x: x[1], reverse=True)
+
+            result = paired_sorted[0][0]
+            probabilities = paired_sorted
+
+            # Generate Grad-CAM explanation
+            try:
+                heatmap = make_gradcam_heatmap(img_batch, model)
+                overlay_img, heatmap_vis = overlay_heatmap(img_original, heatmap)
+                severity, severity_pct = estimate_severity(heatmap)
+
+                disease_info = DISEASE_INFO.get(result, {})
+
+                explanation_data = {
+                    'disease': result,
+                    'confidence': float(paired_sorted[0][1]),
+                    'severity': severity,
+                    'severity_percentage': f"{severity_pct:.1f}%",
+                    'heatmap_base64': image_to_base64(heatmap_vis),
+                    'overlay_base64': image_to_base64(overlay_img),
+                    'symptoms': disease_info.get('symptoms', []),
+                    'treatment': disease_info.get('treatment', []),
+                    'all_predictions': paired_sorted
+                }
+            except Exception as e:
+                print(f"Explanation error: {e}")
+                explanation_data = None
         except Exception as e:
-            print(f"Explanation error: {e}")
-            explanation_data = None
+            print(f"Prediction error: {e}")
+            error = f"Unable to analyze image: {e}"
+            return render_template('index.html', result=result, probabilities=probabilities, image_url=image_url, error=error)
 
     return render_template('index.html', result=result, probabilities=probabilities, image_url=image_url, error=error, explanation=explanation_data)
 

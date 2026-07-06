@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Leaf Disease Predictor - XAI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
     <style>
       .xai-container {
         display: grid;
@@ -123,7 +123,7 @@
                   <div class="col-12 col-md-6">
                     <label class="form-label small">Preview</label>
                     <div id="drop-area" class="preview-box" data-bs-toggle="tooltip" title="Drag & drop an image here">
-                      <img id="preview-img" data-default="{{ url_for('static', filename='img/placeholder.png') }}" src="{{ image_url or url_for('static', filename='img/placeholder.png') }}" alt="preview">
+                      <img id="preview-img" data-default="/static/img/placeholder.png" src="/static/img/placeholder.png" alt="preview">
                     </div>
                     <div class="mt-2 d-flex gap-2">
                       <button id="submit-btn" class="btn btn-primary btn-lg flex-grow-1" type="submit">Upload & Analyze</button>
@@ -135,118 +135,7 @@
 
               <!-- Results Section -->
               <div id="result-area" class="mt-4">
-                {% if error %}
-                  <div class="alert alert-danger" role="alert">{{ error }}</div>
-                {% endif %}
-
-                {% if explanation %}
-                  <!-- Main Prediction Card -->
-                  <div class="card result-card mb-3">
-                    <div class="card-body">
-                      <h5 class="card-title mb-2">Prediction</h5>
-                      <p class="fs-3 mb-0">{{ explanation.disease }}</p>
-                      <div class="mt-2">
-                        <small class="text-muted">Confidence: <strong>{{ '%.1f'|format(explanation.confidence) }}%</strong></small>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- XAI Explainability Section -->
-                  <div class="xai-container">
-                    
-                    <!-- Severity Card -->
-                    <div class="xai-card">
-                      <h6 class="small text-muted mb-3">Disease Severity</h6>
-                      {% if explanation.severity == 'Mild' %}
-                        <div class="severity-badge severity-mild">{{ explanation.severity }}</div>
-                      {% elif explanation.severity == 'Moderate' %}
-                        <div class="severity-badge severity-moderate">{{ explanation.severity }}</div>
-                      {% else %}
-                        <div class="severity-badge severity-severe">{{ explanation.severity }}</div>
-                      {% endif %}
-                      <p class="small mt-2 mb-0">Affected Area: <strong>{{ explanation.severity_percentage }}</strong></p>
-                    </div>
-
-                    <!-- Grad-CAM Visualization Card -->
-                    <div class="xai-card">
-                      <h6 class="small text-muted mb-3">Visual Explanation (Grad-CAM)</h6>
-                      <div class="heatmap-grid">
-                        {% if explanation.heatmap_base64 %}
-                          <div>
-                            <small class="text-muted d-block mb-2">Heatmap</small>
-                            <img src="{{ explanation.heatmap_base64 }}" alt="heatmap" class="heatmap-image">
-                          </div>
-                        {% endif %}
-                        {% if explanation.overlay_base64 %}
-                          <div>
-                            <small class="text-muted d-block mb-2">Overlay</small>
-                            <img src="{{ explanation.overlay_base64 }}" alt="overlay" class="heatmap-image">
-                          </div>
-                        {% endif %}
-                      </div>
-                      <small class="text-muted mt-2 d-block">Red = high influence on prediction</small>
-                    </div>
-
-                    <!-- Confidence Scores Card -->
-                    <div class="xai-card">
-                      <h6 class="small text-muted mb-3">Confidence Scores</h6>
-                      {% for label, prob in explanation.all_predictions %}
-                        <div class="label-prob">
-                          <span>{{ label }}</span>
-                          <strong>{{ '%.1f'|format(prob) }}%</strong>
-                        </div>
-                        <div class="confidence-bar">
-                          <div class="confidence-fill" style="width: {{ prob }}%"></div>
-                        </div>
-                      {% endfor %}
-                    </div>
-
-                    <!-- Symptoms Card -->
-                    <div class="xai-card">
-                      <h6 class="small text-muted mb-3">Observed Symptoms</h6>
-                      <ul class="symptom-list">
-                        {% for symptom in explanation.symptoms %}
-                          <li>{{ symptom }}</li>
-                        {% endfor %}
-                      </ul>
-                    </div>
-
-                    <!-- Treatment Card -->
-                    <div class="xai-card">
-                      <h6 class="small text-muted mb-3">Recommended Actions</h6>
-                      <ul class="treatment-list">
-                        {% for treatment in explanation.treatment %}
-                          <li>{{ treatment }}</li>
-                        {% endfor %}
-                      </ul>
-                    </div>
-
-                  </div>
-
-                {% elif result %}
-                  <!-- Fallback display if explanation data is missing -->
-                  <div class="card result-card mb-3">
-                    <div class="card-body">
-                      <h5 class="card-title mb-1">Top Prediction</h5>
-                      <p class="fs-4 mb-0">{{ result }}</p>
-                    </div>
-                  </div>
-
-                  <div class="mb-2 small text-muted">Class probabilities (sorted)</div>
-                  <div class="prob-list">
-                    {% for label, prob in probabilities %}
-                    <div class="prob-item mb-2">
-                      <div class="d-flex justify-content-between">
-                        <div>{{ label }}</div>
-                        <div>{{ '%.2f'|format(prob) }}%</div>
-                      </div>
-                      <div class="progress mt-1" style="height:8px;">
-                        <div class="progress-bar" role="progressbar" style="width: 0%;" data-prob="{{ '%.2f'|format(prob) }}" aria-valuenow="{{ prob }}" aria-valuemin="0" aria-valuemax="100"></div>
-                      </div>
-                    </div>
-                    {% endfor %}
-                  </div>
-                {% endif %}
+                
               </div>
             </div>
           </div>
@@ -262,7 +151,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="/static/js/app.js"></script>
 
     <!-- Camera Modal -->
     <div class="modal fade" id="cameraModal" tabindex="-1" aria-labelledby="cameraModalLabel" aria-hidden="true">
@@ -317,7 +206,7 @@
           <div class="modal-body">
             <p>Focus this dialog and press <strong>Ctrl+V</strong> to paste an image from clipboard.</p>
             <div class="preview-box" id="paste-preview" style="height:200px;">
-              <img id="paste-img" src="{{ url_for('static', filename='img/placeholder.png') }}" alt="paste preview">
+              <img id="paste-img" src="/static/img/placeholder.png" alt="paste preview">
             </div>
             <div id="paste-alert" class="mt-2 text-danger small d-none"></div>
           </div>
