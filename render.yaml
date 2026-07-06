@@ -5,8 +5,8 @@ services:
     plan: free
     region: oregon
     rootDir: .
-    buildCommand: pip install --no-cache-dir -r requirements.txt
-    startCommand: python webapp/app.py
+    buildCommand: pip install -U pip && pip install --no-cache-dir -r requirements.txt
+    startCommand: gunicorn webapp.app:app --timeout 120 --workers 1 --threads 2
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"

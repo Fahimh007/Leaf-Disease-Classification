@@ -4,3 +4,4 @@ requests
 opencv-python-headless
 numpy<2.0
 tensorflow-cpu==2.16.2
+gunicorn

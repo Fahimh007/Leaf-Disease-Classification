@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.railpack.com",
   "deploy": {
-    "startCommand": "python webapp/app.py"
+    "startCommand": "gunicorn webapp.app:app --timeout 120 --workers 1 --threads 2"
   }
 }
