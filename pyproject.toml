@@ -5,11 +5,13 @@ description = "Flask web app for rubber leaf disease classification"
 requires-python = ">=3.11"
 dependencies = [
   "flask",
-  "tensorflow-cpu==2.20.0",
   "pillow",
-  "numpy>=2.1,<2.2",
   "requests",
   "opencv-python-headless",
+  "numpy<2.0; python_version < '3.13'",
+  "numpy>=2.1,<2.2; python_version >= '3.13'",
+  "tensorflow-cpu==2.16.2; python_version < '3.13'",
+  "tensorflow-cpu==2.20.0; python_version >= '3.13' and python_version < '3.14'",
 ]
 
 [tool.vercel]
