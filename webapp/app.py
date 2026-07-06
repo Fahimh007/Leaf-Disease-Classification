@@ -1,12 +1,11 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from werkzeug.utils import secure_filename
 import numpy as np
 import cv2
 from PIL import Image
 import requests
 import hashlib
-from flask import jsonify
 import base64
 from io import BytesIO
 
