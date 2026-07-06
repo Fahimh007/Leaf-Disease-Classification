@@ -5,7 +5,7 @@ description = "Flask web app for rubber leaf disease classification"
 requires-python = ">=3.11"
 dependencies = [
   "flask",
-  "tensorflow-cpu==2.20.0",
+  "tensorflow-cpu==2.16.2",
   "pillow",
   "numpy<2.0",
   "requests",
